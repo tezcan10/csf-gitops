@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csf-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csf-app
+  template:
+    metadata:
+      labels:
+        app: csf-app
+    spec:
+      containers:
+      - name: csf-app
+        image: acrcsfdemo.azurecr.io/csf-app:v1
+        ports:
+        - containerPort: 8443
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms2g -Xmx3g"
+        resources:
+          requests:
+            memory: "3Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: csf-app-svc
+  namespace: default
+spec:
+  selector:
+    app: csf-app
+  ports:
+  - port: 443
+    targetPort: 8080
+  type: LoadBalancer
