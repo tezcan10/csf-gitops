@@ -1,0 +1,58 @@
+---
+- name: Prepare application server for CSF deployment
+  hosts: appservers
+  become: false
+  vars:
+      app_user: "csfapp"
+      java_version: "8"
+      app_dir: "/Users/tezcan/csf-demo"
+      log_dir: "/Users/tezcan/csf-demo/log"
+      config_dir: "/Users/tezcan/csf-demo/config"
+
+  tasks:
+
+    - name: Ensure app directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ app_dir }}"
+        - "{{ log_dir }}"
+        - "{{ config_dir }}"
+
+    - name: Check Java is installed
+      command: java -version
+      register: java_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Print Java version
+      debug:
+        msg: "Java found: {{ java_check.stderr }}"
+      when: java_check.rc == 0
+
+    - name: Warn if Java not found
+      debug:
+        msg: "WARNING - Java not found, would install openjdk-{{ java_version }} on target server"
+      when: java_check.rc != 0
+
+    - name: Deploy application config
+      copy:
+        dest: "{{ config_dir }}/deployment.info"
+        content: |
+          app=CSF
+          version=3.1.0
+          environment=demo
+          deployed_by=ansible
+          deployed_at={{ ansible_date_time.iso8601 }}
+        mode: '0644'
+
+    - name: Verify config was deployed
+      command: cat {{ config_dir }}/deployment.info
+      register: config_output
+      changed_when: false
+
+    - name: Show deployed config
+      debug:
+        msg: "{{ config_output.stdout_lines }}"
