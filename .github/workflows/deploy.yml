@@ -1,0 +1,59 @@
+name: Validate & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ['k8s/**']        # only fires when manifests change
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout the two repos ──────────────────────────────────
+      - name: Checkout csf-platform (agents)
+        uses: actions/checkout@v4
+        with:
+          repository: tezcan10/csf-platform
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Checkout csf-gitops (manifests)
+        uses: actions/checkout@v4
+        with:
+          repository: tezcan10/csf-gitops
+          path: gitops
+
+      # ── 2. Azure + AKS access ──────────────────────────────────────
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS credentials
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: rg-csf-demo
+          cluster-name: aks-csf-demo
+
+      # ── 3. Python setup ────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install anthropic requests --quiet
+
+      # ── 4. Run pipeline (Agents 3 + 4) ────────────────────────────
+      - name: Run CSF pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_COMMIT_MSG: ${{ github.event.head_commit.message }}
+          K8S_DIR: gitops/k8s
+          # GITHUB_SHA and GITHUB_ACTIONS are set automatically by GitHub
+        run: python3 agents/pipeline.py
+
+      # ── 5. Upload logs as artifact ─────────────────────────────────
+      - name: Upload pipeline logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs-${{ github.run_number }}
+          path: agents/logs/
+          retention-days: 14
