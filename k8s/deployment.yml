@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: csf-app  # gha-trigger
+  name: csf-app
   namespace: default
 spec:
   replicas: 3
@@ -14,7 +14,7 @@ spec:
         app: csf-app
     spec:
       containers:
-      - name: csf-app  # gha-trigger
+      - name: csf-app
         image: acrcsfdemo.azurecr.io/csf-app:v1
         ports:
         - containerPort: 8443
